@@ -1,0 +1,22 @@
+######################################################################
+#                         Test::Perl::Critic                         #
+#                            Version 0.02                            #
+#                       by Jeffrey R. Thalhammer                     #
+#                          <thaljef@cpan.org>                        #
+######################################################################
+
+[0.01] Not released
+
+	"Plan to throw one away" -Frederick Brooks
+
+[0.02] Released on 050930
+
+	Some minor tweaks; Edited POD.
+
+	Removed Test::Pod and Test::Pod::Coverage from the
+	prerequisites list.  Those tests only run if the
+	modules are installed.
+
+	Test::Perl::Critic is going to require Perl::Critic
+	version 0.08 or later, or it won't pass its own
+	criticism tests.
