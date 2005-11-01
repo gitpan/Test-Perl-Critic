@@ -1,9 +1,9 @@
 use blib;
 use strict;
 use warnings;
-use Test::More tests => 1;
+use Test::More;
 use Test::Perl::Critic;
 
 #---------------------------------------------------------------------------
 
-critic_ok('lib/Test/Perl/Critic.pm');
+all_critic_ok('lib', 'blib');

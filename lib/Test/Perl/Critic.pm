@@ -2,15 +2,17 @@ package Test::Perl::Critic;
 
 use strict;
 use warnings;
+use English qw(-no_match_vars);
 use Test::Builder;
 use Perl::Critic;
 use File::Spec;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 $VERSION = eval $VERSION;    ## no critic
 
-my $TEST   = Test::Builder->new();
-my $CONFIG = undef;
+my $TEST    = Test::Builder->new();
+my $PROFILE = undef;
+my $FORMAT  = undef;
 
 #---------------------------------------------------------------------------
 
@@ -23,7 +25,8 @@ sub import {
     *{ $caller . '::all_critic_ok' } = \&all_critic_ok;
 
     $TEST->exported_to($caller);
-    $CONFIG = $args{-profile};
+    $FORMAT  = $args{-format}  || "\t%m at line %l, column %c. %e";
+    $PROFILE = $args{-profile} || q{};
 }
 
 #---------------------------------------------------------------------------
@@ -32,6 +35,8 @@ sub critic_ok {
 
     my ( $file, $name ) = @_;
     $name ||= "Test::Perl::Critic for $file";
+    my @violations = ();
+    my $ok = 0;
 
     if ( !-f $file ) {
         $TEST->ok( 0, $name );
@@ -39,15 +44,28 @@ sub critic_ok {
         return;
     }
 
-    my $critic     = Perl::Critic->new( -profile => $CONFIG );
-    my @violations = $critic->critique($file);
-    my $ok         = !scalar @violations;
+    eval {
+	my $critic  = Perl::Critic->new( -profile => $PROFILE );
+	@violations = $critic->critique($file);
+	$ok         = !scalar @violations;
+    };
+    
+    # Evaluate results
     $TEST->ok( $ok, $name );
 
-    if ( !$ok ) {
-        $TEST->diag('####');    #Just to get on a new line.
-        $TEST->diag("Perl::Critic found these violations in $file:");
-        for my $line (@violations) { $TEST->diag("\t$line") }
+
+    if ($EVAL_ERROR) {  # Trap exceptions from P::C
+	$TEST->diag( "\n" );     #Just to get on a new line.
+        $TEST->diag( qq{Perl::Critic had errors in '$file':} );
+	$TEST->diag( qq{\t$EVAL_ERROR} );
+    }
+    elsif ( !$ok ) {    # Report Policy violations
+        $TEST->diag( "\n" );         #Just to get on a new line.
+        $TEST->diag( qq{Perl::Critic found these violations in '$file':} );
+	$FORMAT =~ s{\%f}{$file}gmx; #HACK! Violation doesn't know the file
+	no warnings 'once';         #Ugh. It's tough to be a perfectionist.
+	local $Perl::Critic::Violation::FORMAT = $FORMAT;  ## no critic
+        for my $viol (@violations) { $TEST->diag("$viol") }
     }
 
     return $ok;
@@ -105,16 +123,16 @@ sub _is_perl {
     my $file = shift;
 
     #Check filename extensions
-    return 1 if $file =~ /\.PL$/;
-    return 1 if $file =~ /\.p(l|m)$/;
-    return 1 if $file =~ /\.t/;
+    return 1 if $file =~ m{ [.] PL          \z}mx;
+    return 1 if $file =~ m{ [.] p (?: l|m ) \z}mx;
+    return 1 if $file =~ m{ [.] t           \z}mx;
 
     #Check for shebang
     open my ($fh), $file or return;
     my $first = <$fh>;
     close $fh;
 
-    return 1 if defined $first && ( $first =~ /^#!.*perl/ );
+    return 1 if defined $first && ( $first =~ m{ \A \#!.*perl }mx );
     return;
 }
 
@@ -207,7 +225,32 @@ Now place a copy of your own F<.perlcritic> file in the distribution
 as F<t/perlcriticrc>.  Then, C<critc_ok()> will be run on all Perl
 files in this distribution using this same Perl::Critic configuration.
 See the L<Perl::Critic> documentation for details on the
-F<.perlcriticrc> file format..
+F<.perlcriticrc> file format.
+
+=head1 DIAGNOSTIC DETAILS
+
+By default, Test::Perl::Critic displays basic information about each
+Policy violation in the diagnostic output of the test.  You can
+customize the format and content of this information by giving the
+C<-format> option to the C<use> pragma.  For example:
+
+  use Test::Perl::Critic (-format => "%m at line %l, column %c.");
+  all_critic_ok();
+
+Formats are a combination of literal and escape characters similar to
+the way C<sprintf> works.  See L<String::Format> for a full
+explanation of the formatting capabilities.  Valid escape characters
+are:
+
+  Escape    Meaning
+  -------   -----------------------------------------------------
+  %m        Brief description of the violation
+  %f        Name of the file where the violation occurred.
+  %l        Line number where the violation occurred
+  %c        Column number where the violation occurred
+  %e        Explanation of violation or page numbers in PBP
+  %d        Full diagnostic discussion of the violation
+  %p        Name of the Policy module that created the violation
 
 =head1 EXPORTS
 
