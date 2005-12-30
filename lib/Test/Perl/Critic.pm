@@ -1,3 +1,10 @@
+#######################################################################
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/lib/Test/Perl/Critic.pm $
+#     $Date: 2005-12-29 21:11:29 -0800 (Thu, 29 Dec 2005) $
+#   $Author: thaljef $
+# $Revision: 178 $
+########################################################################
+
 package Test::Perl::Critic;
 
 use strict;
@@ -7,26 +14,31 @@ use Test::Builder;
 use Perl::Critic;
 use File::Spec;
 
-our $VERSION = '0.03';
+our $VERSION = '0.03_01';
 $VERSION = eval $VERSION;    ## no critic
 
-my $TEST    = Test::Builder->new();
-my $PROFILE = undef;
-my $FORMAT  = undef;
+my $TEST     = Test::Builder->new();
+my $PROFILE  = undef;
+my $FORMAT   = undef;
+my $SEVERITY = undef;
 
 #---------------------------------------------------------------------------
 
 sub import {
+
     my ( $self, %args ) = @_;
     my $caller = caller;
 
-    no strict 'refs';
+    no strict 'refs';  ## no critic
     *{ $caller . '::critic_ok' }     = \&critic_ok;
     *{ $caller . '::all_critic_ok' } = \&all_critic_ok;
 
     $TEST->exported_to($caller);
-    $FORMAT  = $args{-format}  || "\t%m at line %l, column %c. %e";
-    $PROFILE = $args{-profile} || q{};
+    $FORMAT   = $args{-format}   || "\t%m at line %l, column %c. %e";
+    $PROFILE  = $args{-profile}  || q{};
+    $SEVERITY = $args{-severity} || 1;
+
+    return 1;
 }
 
 #---------------------------------------------------------------------------
@@ -34,27 +46,28 @@ sub import {
 sub critic_ok {
 
     my ( $file, $name ) = @_;
-    $name ||= "Test::Perl::Critic for $file";
+    $name ||= qq{Test::Perl::Critic for '$file'};
     my @violations = ();
     my $ok = 0;
 
     if ( !-f $file ) {
         $TEST->ok( 0, $name );
-        $TEST->diag("$file does not exist");
+        $TEST->diag( qq{'$file' does not exist} );
         return;
     }
 
     eval {
-	my $critic  = Perl::Critic->new( -profile => $PROFILE );
+        my %config  = ( -severity => $SEVERITY, -profile => $PROFILE );
+	my $critic  = Perl::Critic->new( %config );
 	@violations = $critic->critique($file);
 	$ok         = !scalar @violations;
     };
-    
+
     # Evaluate results
     $TEST->ok( $ok, $name );
 
 
-    if ($EVAL_ERROR) {  # Trap exceptions from P::C
+    if ($EVAL_ERROR) {     # Trap exceptions from P::C
 	$TEST->diag( "\n" );     #Just to get on a new line.
         $TEST->diag( qq{Perl::Critic had errors in '$file':} );
 	$TEST->diag( qq{\t$EVAL_ERROR} );
@@ -63,8 +76,10 @@ sub critic_ok {
         $TEST->diag( "\n" );         #Just to get on a new line.
         $TEST->diag( qq{Perl::Critic found these violations in '$file':} );
 	$FORMAT =~ s{\%f}{$file}gmx; #HACK! Violation doesn't know the file
-	no warnings 'once';         #Ugh. It's tough to be a perfectionist.
-	local $Perl::Critic::Violation::FORMAT = $FORMAT;  ## no critic
+
+        ## no critic
+	no warnings 'once';
+	local $Perl::Critic::Violation::FORMAT = $FORMAT;
         for my $viol (@violations) { $TEST->diag("$viol") }
     }
 
@@ -100,9 +115,8 @@ sub all_code_files {
             closedir $dh;
 
             @newfiles = File::Spec->no_upwards(@newfiles);
-            @newfiles = grep { $_ ne 'CVS' && $_ ne '.svn' } @newfiles;
-
-            push @queue, map { "$file/$_" } @newfiles;
+            @newfiles = grep { $_ ne 'CVS' && $_ ne '.svn' }    @newfiles;
+            push @queue, map { File::Spec->catfile($file, $_) } @newfiles;
         }
 
         if ( -f $file && _is_perl($file) ) {
@@ -128,7 +142,7 @@ sub _is_perl {
     return 1 if $file =~ m{ [.] t           \z}mx;
 
     #Check for shebang
-    open my ($fh), $file or return;
+    open my ($fh), '<', $file or return;
     my $first = <$fh>;
     close $fh;
 
@@ -210,7 +224,7 @@ A Perl file is:
 
 =head1 CONFIGURATION
 
-L<Perl::Crtic> is highly configurable.  By default, Test::Perl::Critic
+L<Perl::Critic> is highly configurable.  By default, Test::Perl::Critic
 invokes Perl::Critic with its default configuration.  But if you have
 developed your code against a custom Perl::Critic configuration,
 you will want to configure Test::Perl::Critic to do the same.
@@ -243,14 +257,34 @@ explanation of the formatting capabilities.  Valid escape characters
 are:
 
   Escape    Meaning
-  -------   -----------------------------------------------------
+  -------   ------------------------------------------------------------------
   %m        Brief description of the violation
   %f        Name of the file where the violation occurred.
   %l        Line number where the violation occurred
   %c        Column number where the violation occurred
   %e        Explanation of violation or page numbers in PBP
   %d        Full diagnostic discussion of the violation
+  %r        The string of source code that caused the violation
   %p        Name of the Policy module that created the violation
+  %s        The severity level of the violation
+
+=head1 CAVEATS
+
+Despite the obvious convenience of using test scripts to verify that
+your code complies with coding standards, its not really sesible to
+distribute your module with those scripts.  You don't know which
+version of Perl::Critic the user has and whether they have installed
+additional Policy modules, you can't really be sure that your code
+will pass the Test::Perl::Critic tests on another machine.
+
+The easy solution is to add your F<criticize.t> test script to the
+F<MANIFEST.SKIP>.  When you test your build, you'll still be able to
+run the Perl::Critic tests when you C<'make test'>, but they won't be
+included in the tarball when you C<'make dist'>.
+
+See L<http://www.chrisdolan.net/talk/index.php/2005/11/14/private-regression-tests/>
+for an interesting discussion about Test::Perl::Critic and other types
+of author-only regression tests.
 
 =head1 EXPORTS
 

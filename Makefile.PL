@@ -1,3 +1,10 @@
+#######################################################################
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/Makefile.PL $
+#     $Date: 2005-11-02 23:31:11 -0800 (Wed, 02 Nov 2005) $
+#   $Author: thaljef $
+# $Revision: 17 $
+########################################################################
+
 use strict;
 use warnings;
 

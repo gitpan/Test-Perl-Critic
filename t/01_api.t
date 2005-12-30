@@ -1,4 +1,10 @@
-use blib;
+#######################################################################
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/t/01_api.t $
+#     $Date: 2005-12-12 20:40:33 -0800 (Mon, 12 Dec 2005) $
+#   $Author: thaljef $
+# $Revision: 115 $
+########################################################################
+
 use strict;
 use warnings;
 use Test::More tests => 11;
