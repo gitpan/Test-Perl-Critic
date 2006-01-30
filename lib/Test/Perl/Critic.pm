@@ -1,8 +1,8 @@
 #######################################################################
 #      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/lib/Test/Perl/Critic.pm $
-#     $Date: 2005-12-29 21:11:29 -0800 (Thu, 29 Dec 2005) $
-#   $Author: thaljef $
-# $Revision: 178 $
+#     $Date: 2006-01-27 07:52:16 -0800 (Fri, 27 Jan 2006) $
+#   $Author: chrisdolan $
+# $Revision: 267 $
 ########################################################################
 
 package Test::Perl::Critic;
@@ -14,7 +14,7 @@ use Test::Builder;
 use Perl::Critic;
 use File::Spec;
 
-our $VERSION = '0.03_01';
+our $VERSION = '0.04';
 $VERSION = eval $VERSION;    ## no critic
 
 my $TEST     = Test::Builder->new();
@@ -173,7 +173,8 @@ Test::Perl::Critic - Use Perl::Critic in test scripts
 Test::Perl::Critic wraps the L<Perl::Critic> engine in a convenient
 subroutine suitable for test scripts written for L<Test::Harness>.
 This makes it easy to integrate coding-standards enforcement into the
-build process.
+build process.  For ultimate convenience (at the expense of some
+flexibility), see the L<criticism> pragma.
 
 =head1 SUBROUTINES
 
@@ -186,7 +187,7 @@ If it does, the violations will be reported in the test diagnostics.
 The optional second argument is the name of test, which defaults to
 "Perl::Critic test for FILE".
 
-=item all_critic_ok( @DIRECTORIES )
+=item all_critic_ok( [@DIRECTORIES] )
 
 Runs C<critic_ok()> for all Perl files beneath the given list of
 directories.  If given an empty list, the function tries to find all

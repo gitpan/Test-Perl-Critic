@@ -1,9 +1,16 @@
 #######################################################################
 #      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/Changes $
-#     $Date: 2005-11-02 23:31:11 -0800 (Wed, 02 Nov 2005) $
+#     $Date: 2006-01-14 22:46:59 -0800 (Sat, 14 Jan 2006) $
 #   $Author: thaljef $
-# $Revision: 17 $
+# $Revision: 242 $
 ########################################################################
+
+[0.04] Released on 060115
+
+     Updated to be compatible with Perl-Critic 0.14, but is not
+     backward compatible with older versions of Perl-Critic.  If
+     you want to use the -severity option with Perl-Critic, you
+     need to use Perl-Critic version 0.14 or later.
 
 [0.03] Released on 051031
 
