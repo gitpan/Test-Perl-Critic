@@ -1,18 +1,24 @@
 #######################################################################
 #      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/Changes $
-#     $Date: 2006-01-14 22:46:59 -0800 (Sat, 14 Jan 2006) $
+#     $Date: 2006-03-22 22:41:46 -0800 (Wed, 22 Mar 2006) $
 #   $Author: thaljef $
-# $Revision: 242 $
+# $Revision: 346 $
 ########################################################################
 
-[0.04] Released on 060115
+[0.05] Released on 20060326
+
+     Modified import() interface to pass all arguments to Perl::Critic.
+     This give you a direct hook to configure Perl::Critic and
+     should still be backward compatible.
+
+[0.04] Released on 200060115
 
      Updated to be compatible with Perl-Critic 0.14, but is not
      backward compatible with older versions of Perl-Critic.  If
      you want to use the -severity option with Perl-Critic, you
      need to use Perl-Critic version 0.14 or later.
 
-[0.03] Released on 051031
+[0.03] Released on 200051031
 
      Now catching exceptions from Perl::Critic so the tests fail
      gracefully if PPI has errors.
@@ -25,7 +31,7 @@
      have very good test coverage because I haven't really figured 
      out how to test a Test.
 
-[0.02] Released on 050930
+[0.02] Released on 200050930
 
      Some minor tweaks; Edited POD.
 

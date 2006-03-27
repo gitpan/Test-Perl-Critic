@@ -1,8 +1,8 @@
 #######################################################################
 #      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/Build.PL $
-#     $Date: 2005-11-02 23:31:11 -0800 (Wed, 02 Nov 2005) $
+#     $Date: 2006-01-29 20:23:31 -0800 (Sun, 29 Jan 2006) $
 #   $Author: thaljef $
-# $Revision: 17 $
+# $Revision: 275 $
 ########################################################################
 
 use strict;

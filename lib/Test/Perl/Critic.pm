@@ -1,8 +1,8 @@
 #######################################################################
 #      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/lib/Test/Perl/Critic.pm $
-#     $Date: 2006-01-27 07:52:16 -0800 (Fri, 27 Jan 2006) $
-#   $Author: chrisdolan $
-# $Revision: 267 $
+#     $Date: 2006-03-22 22:41:46 -0800 (Wed, 22 Mar 2006) $
+#   $Author: thaljef $
+# $Revision: 346 $
 ########################################################################
 
 package Test::Perl::Critic;
@@ -14,13 +14,12 @@ use Test::Builder;
 use Perl::Critic;
 use File::Spec;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 $VERSION = eval $VERSION;    ## no critic
 
-my $TEST     = Test::Builder->new();
-my $PROFILE  = undef;
-my $FORMAT   = undef;
-my $SEVERITY = undef;
+my $TEST        = Test::Builder->new();
+my $FORMAT      = undef;
+my %CRITIC_ARGS = ();
 
 #---------------------------------------------------------------------------
 
@@ -34,9 +33,8 @@ sub import {
     *{ $caller . '::all_critic_ok' } = \&all_critic_ok;
 
     $TEST->exported_to($caller);
-    $FORMAT   = $args{-format}   || "\t%m at line %l, column %c. %e";
-    $PROFILE  = $args{-profile}  || q{};
-    $SEVERITY = $args{-severity} || 1;
+    $FORMAT = delete $args{'-format'} || "\t%m at line %l, column %c. %e";
+    %CRITIC_ARGS = %args;
 
     return 1;
 }
@@ -57,8 +55,7 @@ sub critic_ok {
     }
 
     eval {
-        my %config  = ( -severity => $SEVERITY, -profile => $PROFILE );
-	my $critic  = Perl::Critic->new( %config );
+	my $critic  = Perl::Critic->new( %CRITIC_ARGS );
 	@violations = $critic->critique($file);
 	$ok         = !scalar @violations;
     };
@@ -67,12 +64,12 @@ sub critic_ok {
     $TEST->ok( $ok, $name );
 
 
-    if ($EVAL_ERROR) {     # Trap exceptions from P::C
+    if ($EVAL_ERROR) {           # Trap exceptions from P::C
 	$TEST->diag( "\n" );     #Just to get on a new line.
         $TEST->diag( qq{Perl::Critic had errors in '$file':} );
 	$TEST->diag( qq{\t$EVAL_ERROR} );
     }
-    elsif ( !$ok ) {    # Report Policy violations
+    elsif ( !$ok ) {                 # Report Policy violations
         $TEST->diag( "\n" );         #Just to get on a new line.
         $TEST->diag( qq{Perl::Critic found these violations in '$file':} );
 	$FORMAT =~ s{\%f}{$file}gmx; #HACK! Violation doesn't know the file
@@ -111,7 +108,7 @@ sub all_code_files {
         my $file = shift @queue;
         if ( -d $file ) {
             opendir my ($dh), $file or next;
-            my @newfiles = readdir $dh;
+            my @newfiles = sort readdir $dh;
             closedir $dh;
 
             @newfiles = File::Spec->no_upwards(@newfiles);
@@ -156,6 +153,8 @@ sub _is_perl {
 
 __END__
 
+=pod
+
 =head1 NAME
 
 Test::Perl::Critic - Use Perl::Critic in test scripts
@@ -180,7 +179,7 @@ flexibility), see the L<criticism> pragma.
 
 =over 8
 
-=item critic_ok( FILE [, TESTNAME ] )
+=item critic_ok( FILE [, TEST_NAME ] )
 
 Okays the test if Perl::Critic does not find any violations in FILE.
 If it does, the violations will be reported in the test diagnostics.
@@ -192,23 +191,25 @@ The optional second argument is the name of test, which defaults to
 Runs C<critic_ok()> for all Perl files beneath the given list of
 directories.  If given an empty list, the function tries to find all
 Perl files in the F<blib/> directory.  If the F<blib/> directory does
-not exist, then it tries the F<lib/> directory.
+not exist, then it tries the F<lib/> directory.  Returns true if all
+files are okay, or false if any file fails.
 
-If you are testing a module, just make a F<t/criticize.t> file with
-this:
+If you are building a module with the usual CPAN directory structure,
+just make a F<t/perlcritic.t> file like this:
 
   use Test::More;
   eval 'use Test::Perl::Critic';
   plan skip_all => 'Test::Perl::Critic required to criticise code' if $@;
   all_critic_ok();
 
-Returns true if all files are ok, or false if any file fails.
+Or if you use a the latest version of L<Module::Starter::PBP>, it will
+generate this and several other standard test scripts for you.
 
 =item all_code_files ( [@DIRECTORIES] )
 
 Returns a list of all the Perl files found beneath each DIRECTORY, If
 @DIRECTORIES is an empty list, defaults to F<blib/>.  If F<blib/> does
-not exist, it tries F<lib/>.  Skips any files in CVS or .svn
+not exist, it tries F<lib/>.  Skips any files in CVS or Subversion
 directories.
 
 A Perl file is:
@@ -230,8 +231,10 @@ invokes Perl::Critic with its default configuration.  But if you have
 developed your code against a custom Perl::Critic configuration,
 you will want to configure Test::Perl::Critic to do the same.
 
-Test::Perl::Critic allows you to configure Perl::Critic by passing the
-path to a F<perlcriticrc> file in the C<use> pragma.  For example:
+Any arguments given to the C<use> pragma will be passed into the
+L<Perl::Critic> constructor.  For example, if you have developed your
+code using a custom f<.perlcritirc> file, you can ask
+Test::Perl::Critic to use a custom file too:
 
   use Test::Perl::Critic (-profile => 't/perlcriticrc');
   all_critic_ok();
@@ -246,8 +249,8 @@ F<.perlcriticrc> file format.
 
 By default, Test::Perl::Critic displays basic information about each
 Policy violation in the diagnostic output of the test.  You can
-customize the format and content of this information by giving the
-C<-format> option to the C<use> pragma.  For example:
+customize the format and content of this information by giving an
+additional C<-format> option to the C<use> pragma.  For example:
 
   use Test::Perl::Critic (-format => "%m at line %l, column %c.");
   all_critic_ok();
@@ -272,7 +275,7 @@ are:
 =head1 CAVEATS
 
 Despite the obvious convenience of using test scripts to verify that
-your code complies with coding standards, its not really sesible to
+your code complies with coding standards, its not really sensible to
 distribute your module with those scripts.  You don't know which
 version of Perl::Critic the user has and whether they have installed
 additional Policy modules, you can't really be sure that your code
@@ -313,7 +316,7 @@ Jeffrey Ryan Thalhammer <thaljef@cpan.org>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005 Jeffrey Ryan Thalhammer.  All rights reserved.
+Copyright (c) 2005-2006 Jeffrey Ryan Thalhammer.  All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.  The full text of this license
