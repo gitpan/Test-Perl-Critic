@@ -1,9 +1,18 @@
 #######################################################################
 #      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/Changes $
-#     $Date: 2006-03-22 22:41:46 -0800 (Wed, 22 Mar 2006) $
+#     $Date: 2006-05-14 05:38:17 -0700 (Sun, 14 May 2006) $
 #   $Author: thaljef $
-# $Revision: 346 $
+# $Revision: 427 $
 ########################################################################
+
+[0.06] Released on 20060514
+
+     No functionality changes or bug fixes, just refactorings.
+
+     The all_code_files() function is now deprecated.  See
+     all_perl_files() in Perl::Critic::Utils instead
+
+     Now requires Perl::Critic version 0.15_03 or higher.
 
 [0.05] Released on 20060326
 
