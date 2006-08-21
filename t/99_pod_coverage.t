@@ -1,8 +1,8 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/t/99_pod_coverage.t $
-#     $Date: 2006-03-19 16:17:51 -0800 (Sun, 19 Mar 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.07/t/99_pod_coverage.t $
+#     $Date: 2006-08-20 18:01:47 -0700 (Sun, 20 Aug 2006) $
 #   $Author: thaljef $
-# $Revision: 335 $
+# $Revision: 635 $
 ########################################################################
 
 use strict;

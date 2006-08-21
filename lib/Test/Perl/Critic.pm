@@ -1,23 +1,24 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/trunk/Test-Perl-Critic/lib/Test/Perl/Critic.pm $
-#     $Date: 2006-05-03 12:46:29 -0700 (Wed, 03 May 2006) $
-#   $Author: chrisdolan $
-# $Revision: 404 $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.07/lib/Test/Perl/Critic.pm $
+#     $Date: 2006-08-20 18:01:47 -0700 (Sun, 20 Aug 2006) $
+#   $Author: thaljef $
+# $Revision: 635 $
 ########################################################################
 
 package Test::Perl::Critic;
 
 use strict;
 use warnings;
+use Carp qw(croak);
 use English qw(-no_match_vars);
 use File::Spec;
 use Test::Builder;
 use Perl::Critic;
 use Perl::Critic::Utils;
 
+our $VERSION = 0.07;
 
-our $VERSION = '0.06';
-$VERSION = eval $VERSION;    ## no critic
+#---------------------------------------------------------------------------
 
 my $TEST        = Test::Builder->new();
 my $FORMAT      = undef;
@@ -35,7 +36,11 @@ sub import {
     *{ $caller . '::all_critic_ok' } = \&all_critic_ok;
 
     $TEST->exported_to($caller);
-    $FORMAT = delete $args{'-format'} || "\t%m at line %l, column %c. %e";
+
+    my $verbosity = $args{-verbose} || $args{-format} || 3;
+    my $is_integer = $verbosity =~ m{ \A [+-]? \d+ \z }mx;
+    $FORMAT = $is_integer ? verbosity_to_format( $verbosity ) : $verbosity;
+
     %CRITIC_ARGS = %args;
 
     return 1;
@@ -46,20 +51,16 @@ sub import {
 sub critic_ok {
 
     my ( $file, $name ) = @_;
-    $name ||= qq{Test::Perl::Critic for '$file'};
+    croak q{no file specified} if !defined $file;
+    croak qq{"$file" does not exist} if !-f $file;
+    $name ||= qq{Test::Perl::Critic for "$file"};
     my @violations = ();
     my $ok = 0;
 
-    if ( !-f $file ) {
-        $TEST->ok( 0, $name );
-        $TEST->diag( qq{'$file' does not exist} );
-        return;
-    }
-
     eval {
-	my $critic  = Perl::Critic->new( %CRITIC_ARGS );
-	@violations = $critic->critique($file);
-	$ok         = !scalar @violations;
+        my $critic  = Perl::Critic->new( %CRITIC_ARGS );
+        @violations = $critic->critique($file);
+        $ok         = !scalar @violations;
     };
 
     # Evaluate results
@@ -67,18 +68,16 @@ sub critic_ok {
 
 
     if ($EVAL_ERROR) {           # Trap exceptions from P::C
-	$TEST->diag( "\n" );     # Just to get on a new line.
-        $TEST->diag( qq{Perl::Critic had errors in '$file':} );
-	$TEST->diag( qq{\t$EVAL_ERROR} );
+        $TEST->diag( "\n" );     # Just to get on a new line.
+        $TEST->diag( qq{Perl::Critic had errors in "$file":} );
+        $TEST->diag( qq{\t$EVAL_ERROR} );
     }
     elsif ( !$ok ) {                 # Report Policy violations
         $TEST->diag( "\n" );         # Just to get on a new line.
-        $TEST->diag( qq{Perl::Critic found these violations in '$file':} );
-	$FORMAT =~ s{\%f}{$file}gmx; #HACK! Violation doesn't know the file
+        $TEST->diag( qq{Perl::Critic found these violations in "$file":} );
+        $FORMAT =~ s{\%f}{$file}gmx; #HACK! Violation doesn't know the file
 
-        ## no critic
-	no warnings 'once';
-	local $Perl::Critic::Violation::FORMAT = $FORMAT;
+        Perl::Critic::Violation::set_format( $FORMAT );
         for my $viol (@violations) { $TEST->diag("$viol") }
     }
 
@@ -93,18 +92,15 @@ sub all_critic_ok {
     my @files = all_code_files( @dirs );
     $TEST->plan( tests => scalar @files );
 
-    my $ok = 1;
-    for my $file (@files) {
-        critic_ok( $file, $file ) or undef $ok;
-    }
-    return $ok;
+    my $okays = grep { critic_ok($_) } @files;
+    return $okays == @files;
 }
 
 #---------------------------------------------------------------------------
 
 sub all_code_files {
     my @dirs = @_ ? @_ : _starting_points();
-    return Perl::Critic::Utils::all_perl_files(@dirs);
+    return all_perl_files(@dirs);
 }
 
 #---------------------------------------------------------------------------
@@ -124,7 +120,7 @@ __END__
 
 =head1 NAME
 
-Test::Perl::Critic - Use Perl::Critic in test scripts
+Test::Perl::Critic - Use Perl::Critic in test programs
 
 =head1 SYNOPSIS
 
@@ -137,10 +133,10 @@ Test::Perl::Critic - Use Perl::Critic in test scripts
 =head1 DESCRIPTION
 
 Test::Perl::Critic wraps the L<Perl::Critic> engine in a convenient
-subroutine suitable for test scripts written for L<Test::Harness>.
-This makes it easy to integrate coding-standards enforcement into the
-build process.  For ultimate convenience (at the expense of some
-flexibility), see the L<criticism> pragma.
+subroutine suitable for test programs written using the L<Test::More>
+framework.  This makes it easy to integrate coding-standards
+enforcement into the build process.  For ultimate convenience (at the
+expense of some flexibility), see the L<criticism> pragma.
 
 =head1 SUBROUTINES
 
@@ -164,13 +160,11 @@ files are okay, or false if any file fails.
 If you are building a module with the usual CPAN directory structure,
 just make a F<t/perlcritic.t> file like this:
 
-  use Test::More;
-  eval 'use Test::Perl::Critic';
-  plan skip_all => 'Test::Perl::Critic required to criticise code' if $@;
+  use Test::Perl::Critic;
   all_critic_ok();
 
-Or if you use a the latest version of L<Module::Starter::PBP>, it will
-generate this and several other standard test scripts for you.
+Or if you use the latest version of L<Module::Starter::PBP>, it will
+generate this and several other standard test programs for you.
 
 =item all_code_files ( [@DIRECTORIES] )
 
@@ -196,69 +190,100 @@ A Perl file is:
 
 =head1 CONFIGURATION
 
-L<Perl::Critic> is highly configurable.  By default, Test::Perl::Critic
-invokes Perl::Critic with its default configuration.  But if you have
-developed your code against a custom Perl::Critic configuration,
-you will want to configure Test::Perl::Critic to do the same.
+L<Perl::Critic> is highly configurable.  By default,
+Test::Perl::Critic invokes Perl::Critic with it's default
+configuration.  But if you have developed your code against a custom
+Perl::Critic configuration, you will want to configure
+Test::Perl::Critic to do the same.
 
 Any arguments given to the C<use> pragma will be passed into the
-L<Perl::Critic> constructor.  For example, if you have developed your
-code using a custom f<.perlcritirc> file, you can ask
-Test::Perl::Critic to use a custom file too:
+L<Perl::Critic> constructor.  So if you have developed your code using
+a custom F<~/.perlcriticrc> file, you can ask Test::Perl::Critic to
+use a custom file too.
 
   use Test::Perl::Critic (-profile => 't/perlcriticrc');
   all_critic_ok();
 
-Now place a copy of your own F<.perlcritic> file in the distribution
-as F<t/perlcriticrc>.  Then, C<critc_ok()> will be run on all Perl
+Now place a copy of your own F<~/.perlcriticrc> file in the distribution
+as F<t/perlcriticrc>.  Then, C<critic_ok()> will be run on all Perl
 files in this distribution using this same Perl::Critic configuration.
 See the L<Perl::Critic> documentation for details on the
 F<.perlcriticrc> file format.
+
+Any argument that is supported by the L<Perl::Critic> constructor can
+be passed through this interface.  For example, you can also set the
+minimum severity level, or include & exclude specific policies like
+this:
+
+  use Test::Perl::Critic (-severity => 2, -exclude => ['RequireRcsKeywords']);
+  all_critic_ok();
+
+See the L<Perl::Critic> documentation for complete details on it's
+options and arguments.
 
 =head1 DIAGNOSTIC DETAILS
 
 By default, Test::Perl::Critic displays basic information about each
 Policy violation in the diagnostic output of the test.  You can
 customize the format and content of this information by giving an
-additional C<-format> option to the C<use> pragma.  For example:
+additional C<-verbose> option to the C<use> pragma.  This behaves
+exactly like the C<-verbose> switch on the F<perlcritic> program.  For
+example:
 
-  use Test::Perl::Critic (-format => "%m at line %l, column %c.");
-  all_critic_ok();
+  use Test::Perl::Critic (-verbose => 6);
+
+  #or...
+
+  use Test::Perl::Critic (-verbose => '%f: %m at %l');
+
+If given a number, Test::Perl::Critic reports violations using one of
+the predefined formats described below. If given a string, it is
+interpreted to be an actual format specification. If the -verbose
+option is not specified, it defaults to 3.
+
+    Verbosity     Format Specification
+    -----------   --------------------------------------------------------------------
+     1            "%f:%l:%c:%m\n",
+     2            "%f: (%l:%c) %m\n",
+     3            "%m at line %l, column %c.  %e.  (Severity: %s)\n",
+     4            "%f: %m at line %l, column %c.  %e.  (Severity: %s)\n",
+     5            "%m at line %l, near '%r'.  (Severity: %s)\n",
+     6            "%f: %m at line %l near '%r'.  (Severity: %s)\n",
+     7            "[%p] %m at line %l, column %c.  (Severity: %s)\n",
+     8            "[%p] %m at line %l, near '%r'.  (Severity: %s)\n",
+     9            "%m at line %l, column %c.\n  %p (Severity: %s)\n%d\n",
+    10            "%m at line %l, near '%r'.\n  %p (Severity: %s)\n%d\n"
 
 Formats are a combination of literal and escape characters similar to
-the way C<sprintf> works.  See L<String::Format> for a full
-explanation of the formatting capabilities.  Valid escape characters
-are:
+the way sprintf works. See String::Format for a full explanation of
+the formatting capabilities. Valid escape characters are:
 
-  Escape    Meaning
-  -------   ------------------------------------------------------------------
-  %m        Brief description of the violation
-  %f        Name of the file where the violation occurred.
-  %l        Line number where the violation occurred
-  %c        Column number where the violation occurred
-  %e        Explanation of violation or page numbers in PBP
-  %d        Full diagnostic discussion of the violation
-  %r        The string of source code that caused the violation
-  %p        Name of the Policy module that created the violation
-  %s        The severity level of the violation
-
-The default format is:
-
-  "\t%m at line %l, column %c. %e"
+    Escape    Meaning
+    -------   ------------------------------------------------------------------------
+    %m        Brief description of the violation
+    %f        Name of the file where the violation occurred.
+    %l        Line number where the violation occurred
+    %c        Column number where the violation occurred
+    %e        Explanation of violation or page numbers in PBP
+    %d        Full diagnostic discussion of the violation
+    %r        The string of source code that caused the violation
+    %P        Name of the Policy module that created the violation
+    %p        Name of the Policy without the Perl::Critic::Policy:: prefix
+    %s        The severity level of the violation
 
 =head1 CAVEATS
 
-Despite the obvious convenience of using test scripts to verify that
-your code complies with coding standards, its not really sensible to
-distribute your module with those scripts.  You don't know which
+Despite the obvious convenience of using test programs to verify that
+your code complies with coding standards, it is not really sensible to
+distribute your module with those test programs.  You don't know which
 version of Perl::Critic the user has and whether they have installed
-additional Policy modules, you can't really be sure that your code
+additional Policy modules, so you can't really be sure that your code
 will pass the Test::Perl::Critic tests on another machine.
 
-The easy solution is to add your F<criticize.t> test script to the
-F<MANIFEST.SKIP>.  When you test your build, you'll still be able to
-run the Perl::Critic tests when you C<'make test'>, but they won't be
-included in the tarball when you C<'make dist'>.
+The easy solution is to add your F<perlcritic.t> test program to the
+F<MANIFEST.SKIP> file.  When you test your build, you'll still be able
+to run the Perl::Critic tests with C<"make test">, but they won't be
+included in the tarball when you C<"make dist">.
 
 See L<http://www.chrisdolan.net/talk/index.php/2005/11/14/private-regression-tests/>
 for an interesting discussion about Test::Perl::Critic and other types
@@ -269,11 +294,38 @@ of author-only regression tests.
   critic_ok()
   all_critic_ok()
 
+=head1 PERFORMANCE HACKS
+
+If you want a small performance boost, you can tell PPI to cache
+results from previous parsing runs.  Most of the processing time is in
+Perl::Critic, not PPI, so the speedup is not huge (only about 20%).
+Nonetheless, if your distribution is large, it's worth the effort.
+
+Add a block of code like the following to your test program, probably
+just before the call to C<all_critic_ok()>.  Be sure to adjust the
+path to the temp dir appropriately for your system.
+
+    use File::Spec;
+    my $cache_path = File::Spec->catdir(File::Spec->tmpdir,
+                                        "test-perl-critic-cache-$ENV{USER}");
+    if (!-d $cache_path) {
+       mkdir $cache_path, oct 700;
+    }
+    require PPI::Cache;
+    PPI::Cache->import(path => $cache_path);
+
+We recommend that you do NOT use this technique for tests that will go
+out to end-users.  They're probably going to only run the tests once,
+so they will not see the benefit of the caching but will still have
+files stored in their temp dir.
+
 =head1 BUGS
 
 Please report all bugs to L<http://rt.cpan.org>.  Thanks.
 
 =head1 SEE ALSO
+
+L<Module::Starter::PBP>
 
 L<Perl::Critic>
 
@@ -282,7 +334,7 @@ L<Test::More>
 =head1 CREDITS
 
 Andy Lester, whose L<Test::Pod> module provided most of the code and
-documentation for Test::Critic.  Thanks, Andy.
+documentation for Test::Perl::Critic.  Thanks, Andy.
 
 =head1 AUTHOR
 
