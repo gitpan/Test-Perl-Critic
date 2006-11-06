@@ -1,8 +1,8 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.07/Build.PL $
-#     $Date: 2006-08-20 18:01:47 -0700 (Sun, 20 Aug 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.08/Build.PL $
+#     $Date: 2006-11-05 18:46:37 -0800 (Sun, 05 Nov 2006) $
 #   $Author: thaljef $
-# $Revision: 635 $
+# $Revision: 816 $
 ########################################################################
 
 use strict;
@@ -16,10 +16,10 @@ my $builder = Module::Build->new(
   dist_abstract  => 'Use Perl::Critic in test scripts',
   license        => 'perl',
 
-  requires       => {'Perl::Critic'          => 0.19,
-                     'Perl::Critic::Utils'   => 0.19,
-		     'Test::More'            => 0,
-                     'File::Spec'            => 0,
+  requires       => {'Perl::Critic'              => 0.21,
+                     'Perl::Critic::Utils'       => 0.21,
+                     'Perl::Critic::Violation'   => 0.21,
+		     'Test::More'                => 0,
 	            },
 );
 

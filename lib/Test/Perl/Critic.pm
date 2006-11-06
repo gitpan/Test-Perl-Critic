@@ -1,8 +1,8 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.07/lib/Test/Perl/Critic.pm $
-#     $Date: 2006-08-20 18:01:47 -0700 (Sun, 20 Aug 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.08/lib/Test/Perl/Critic.pm $
+#     $Date: 2006-11-05 18:46:37 -0800 (Sun, 05 Nov 2006) $
 #   $Author: thaljef $
-# $Revision: 635 $
+# $Revision: 816 $
 ########################################################################
 
 package Test::Perl::Critic;
@@ -11,17 +11,16 @@ use strict;
 use warnings;
 use Carp qw(croak);
 use English qw(-no_match_vars);
-use File::Spec;
-use Test::Builder;
-use Perl::Critic;
+use Test::Builder qw();
+use Perl::Critic qw();
+use Perl::Critic::Violation qw();
 use Perl::Critic::Utils;
 
-our $VERSION = 0.07;
+our $VERSION = 0.08;
 
 #---------------------------------------------------------------------------
 
 my $TEST        = Test::Builder->new();
-my $FORMAT      = undef;
 my %CRITIC_ARGS = ();
 
 #---------------------------------------------------------------------------
@@ -37,10 +36,8 @@ sub import {
 
     $TEST->exported_to($caller);
 
-    my $verbosity = $args{-verbose} || $args{-format} || 3;
-    my $is_integer = $verbosity =~ m{ \A [+-]? \d+ \z }mx;
-    $FORMAT = $is_integer ? verbosity_to_format( $verbosity ) : $verbosity;
-
+    # -format is supported for backward compatibility
+    if( exists $args{-format} ){ $args{-verbose} = $args{-format}; }
     %CRITIC_ARGS = %args;
 
     return 1;
@@ -50,21 +47,25 @@ sub import {
 
 sub critic_ok {
 
-    my ( $file, $name ) = @_;
-    croak q{no file specified} if !defined $file;
-    croak qq{"$file" does not exist} if !-f $file;
-    $name ||= qq{Test::Perl::Critic for "$file"};
+    my ( $file, $test_name ) = @_;
+    croak q{no file specified} if not defined $file;
+    croak qq{"$file" does not exist} if not -f $file;
+    $test_name ||= qq{Test::Perl::Critic for "$file"};
+
+    my $critic = undef;
     my @violations = ();
     my $ok = 0;
 
+    # Run Perl::Critic
     eval {
-        my $critic  = Perl::Critic->new( %CRITIC_ARGS );
-        @violations = $critic->critique($file);
-        $ok         = !scalar @violations;
+        # TODO: Should $critic be a global singleton?
+        $critic     = Perl::Critic->new( %CRITIC_ARGS );
+        @violations = $critic->critique( $file );
+        $ok         = not scalar @violations;
     };
 
     # Evaluate results
-    $TEST->ok( $ok, $name );
+    $TEST->ok( $ok, $test_name );
 
 
     if ($EVAL_ERROR) {           # Trap exceptions from P::C
@@ -72,12 +73,12 @@ sub critic_ok {
         $TEST->diag( qq{Perl::Critic had errors in "$file":} );
         $TEST->diag( qq{\t$EVAL_ERROR} );
     }
-    elsif ( !$ok ) {                 # Report Policy violations
-        $TEST->diag( "\n" );         # Just to get on a new line.
+    elsif ( not $ok ) {          # Report Policy violations
+        $TEST->diag( "\n" );     # Just to get on a new line.
         $TEST->diag( qq{Perl::Critic found these violations in "$file":} );
-        $FORMAT =~ s{\%f}{$file}gmx; #HACK! Violation doesn't know the file
 
-        Perl::Critic::Violation::set_format( $FORMAT );
+        my $verbose = $critic->config->verbose();
+        Perl::Critic::Violation::set_format( $verbose );
         for my $viol (@violations) { $TEST->diag("$viol") }
     }
 
@@ -100,7 +101,7 @@ sub all_critic_ok {
 
 sub all_code_files {
     my @dirs = @_ ? @_ : _starting_points();
-    return all_perl_files(@dirs);
+    return Perl::Critic::Utils::all_perl_files(@dirs);
 }
 
 #---------------------------------------------------------------------------
@@ -117,6 +118,8 @@ sub _starting_points {
 __END__
 
 =pod
+
+=for stopwords API
 
 =head1 NAME
 
@@ -137,6 +140,23 @@ subroutine suitable for test programs written using the L<Test::More>
 framework.  This makes it easy to integrate coding-standards
 enforcement into the build process.  For ultimate convenience (at the
 expense of some flexibility), see the L<criticism> pragma.
+
+If you'd like to try L<Perl::Critic> without installing anything,
+there is a web-service available at L<http://perlcritic.com>.  The
+web-service does not yet support all the configuration features that
+are available in the native Perl::Critic API, but it should give you a
+good idea of what it does.  You can also invoke the perlcritic
+web-service from the command line by doing an HTTP-post, such as one
+of these:
+
+    $> POST http://perlcritic.com/perl/critic.pl < MyModule.pm
+    $> lwp-request -m POST http://perlcritic.com/perl/critic.pl < MyModule.pm
+    $> wget -q -O - --post-file=MyModule.pm http://perlcritic.com/perl/critic.pl
+
+Please note that the perlcritic web-service is still alpha code.  The
+URL and interface to the service are subject to change.
+
+
 
 =head1 SUBROUTINES
 
@@ -242,33 +262,34 @@ interpreted to be an actual format specification. If the -verbose
 option is not specified, it defaults to 3.
 
     Verbosity     Format Specification
-    -----------   --------------------------------------------------------------------
+    -----------   -------------------------------------------------------------
      1            "%f:%l:%c:%m\n",
      2            "%f: (%l:%c) %m\n",
-     3            "%m at line %l, column %c.  %e.  (Severity: %s)\n",
-     4            "%f: %m at line %l, column %c.  %e.  (Severity: %s)\n",
-     5            "%m at line %l, near '%r'.  (Severity: %s)\n",
-     6            "%f: %m at line %l near '%r'.  (Severity: %s)\n",
-     7            "[%p] %m at line %l, column %c.  (Severity: %s)\n",
-     8            "[%p] %m at line %l, near '%r'.  (Severity: %s)\n",
-     9            "%m at line %l, column %c.\n  %p (Severity: %s)\n%d\n",
-    10            "%m at line %l, near '%r'.\n  %p (Severity: %s)\n%d\n"
+     3            "%m at %f line %l\n",
+     4            "%m at line %l, column %c.  %e.  (Severity: %s)\n",
+     5            "%f: %m at line %l, column %c.  %e.  (Severity: %s)\n",
+     6            "%m at line %l, near '%r'.  (Severity: %s)\n",
+     7            "%f: %m at line %l near '%r'.  (Severity: %s)\n",
+     8            "[%p] %m at line %l, column %c.  (Severity: %s)\n",
+     9            "[%p] %m at line %l, near '%r'.  (Severity: %s)\n",
+    10            "%m at line %l, column %c.\n  %p (Severity: %s)\n%d\n",
+    11            "%m at line %l, near '%r'.\n  %p (Severity: %s)\n%d\n"
 
 Formats are a combination of literal and escape characters similar to
 the way sprintf works. See String::Format for a full explanation of
 the formatting capabilities. Valid escape characters are:
 
     Escape    Meaning
-    -------   ------------------------------------------------------------------------
-    %m        Brief description of the violation
+    -------   ----------------------------------------------------------------
+    %c        Column number where the violation occurred
+    %d        Full diagnostic discussion of the violation
+    %e        Explanation of violation or page numbers in PBP
     %f        Name of the file where the violation occurred.
     %l        Line number where the violation occurred
-    %c        Column number where the violation occurred
-    %e        Explanation of violation or page numbers in PBP
-    %d        Full diagnostic discussion of the violation
-    %r        The string of source code that caused the violation
+    %m        Brief description of the violation
     %P        Name of the Policy module that created the violation
     %p        Name of the Policy without the Perl::Critic::Policy:: prefix
+    %r        The string of source code that caused the violation
     %s        The severity level of the violation
 
 =head1 CAVEATS
@@ -303,7 +324,7 @@ Nonetheless, if your distribution is large, it's worth the effort.
 
 Add a block of code like the following to your test program, probably
 just before the call to C<all_critic_ok()>.  Be sure to adjust the
-path to the temp dir appropriately for your system.
+path to the temp directory appropriately for your system.
 
     use File::Spec;
     my $cache_path = File::Spec->catdir(File::Spec->tmpdir,
@@ -317,7 +338,7 @@ path to the temp dir appropriately for your system.
 We recommend that you do NOT use this technique for tests that will go
 out to end-users.  They're probably going to only run the tests once,
 so they will not see the benefit of the caching but will still have
-files stored in their temp dir.
+files stored in their temp directory.
 
 =head1 BUGS
 

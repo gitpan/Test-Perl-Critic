@@ -1,8 +1,8 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.07/t/98_pod_syntax.t $
-#     $Date: 2006-08-20 18:01:47 -0700 (Sun, 20 Aug 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.08/t/98_pod_syntax.t $
+#     $Date: 2006-11-05 18:46:37 -0800 (Sun, 05 Nov 2006) $
 #   $Author: thaljef $
-# $Revision: 635 $
+# $Revision: 816 $
 ########################################################################
 
 use strict;
