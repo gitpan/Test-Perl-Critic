@@ -1,8 +1,8 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.08/Makefile.PL $
-#     $Date: 2006-11-05 18:46:37 -0800 (Sun, 05 Nov 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.01/Makefile.PL $
+#     $Date: 2007-01-24 22:22:10 -0800 (Wed, 24 Jan 2007) $
 #   $Author: thaljef $
-# $Revision: 816 $
+# $Revision: 1183 $
 ########################################################################
 
 use strict;

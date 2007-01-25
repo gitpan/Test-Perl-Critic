@@ -1,8 +1,8 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.08/lib/Test/Perl/Critic.pm $
-#     $Date: 2006-11-05 18:46:37 -0800 (Sun, 05 Nov 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.01/lib/Test/Perl/Critic.pm $
+#     $Date: 2007-01-24 22:22:10 -0800 (Wed, 24 Jan 2007) $
 #   $Author: thaljef $
-# $Revision: 816 $
+# $Revision: 1183 $
 ########################################################################
 
 package Test::Perl::Critic;
@@ -16,7 +16,10 @@ use Perl::Critic qw();
 use Perl::Critic::Violation qw();
 use Perl::Critic::Utils;
 
-our $VERSION = 0.08;
+
+#---------------------------------------------------------------------------
+
+our $VERSION = 1.01;
 
 #---------------------------------------------------------------------------
 
@@ -127,11 +130,46 @@ Test::Perl::Critic - Use Perl::Critic in test programs
 
 =head1 SYNOPSIS
 
-  use Test::Perl::Critic;
+Test one file:
 
-  critic_ok($file);                          #Test one file
-  all_critic_ok($dir_1, $dir_2, $dir_N );    #Test all files in several $dirs
-  all_critic_ok()                            #Test all files in distro
+  use Test::Perl::Critic;
+  use Test::More tests => 1;
+  critic_ok($file);
+
+Or test all files in one or more directories:
+
+  use Test::Perl::Critic;
+  all_critic_ok($dir_1, $dir_2, $dir_N );
+
+Or test all files in a distribution:
+
+  use Test::Perl::Critic;
+  all_critic_ok();
+
+Recommended usage for CPAN distributions:
+
+  use strict;
+  use warnings;
+  use File::Spec;
+  use Test::More;
+  use English qw(-no_match_vars);
+
+  if ( not $ENV{TEST_AUTHOR} ) {
+      my $msg = 'Author test.  Set $ENV{TEST_AUTHOR} to a true value to run.';
+      plan( skip_all => $msg );
+  }
+
+  eval { require Test::Perl::Critic; };
+
+  if ( $EVAL_ERROR ) {
+     my $msg = 'Test::Perl::Critic required to criticise code';
+     plan( skip_all => $msg );
+  }
+
+  my $rcfile = File::Spec->catfile( 't', 'perlcriticrc' );
+  Test::Perl::Critic->import( -profile => $rcfile );
+  all_critic_ok();
+
 
 =head1 DESCRIPTION
 
@@ -149,9 +187,9 @@ good idea of what it does.  You can also invoke the perlcritic
 web-service from the command line by doing an HTTP-post, such as one
 of these:
 
-    $> POST http://perlcritic.com/perl/critic.pl < MyModule.pm
-    $> lwp-request -m POST http://perlcritic.com/perl/critic.pl < MyModule.pm
-    $> wget -q -O - --post-file=MyModule.pm http://perlcritic.com/perl/critic.pl
+  $> POST http://perlcritic.com/perl/critic.pl < MyModule.pm
+  $> lwp-request -m POST http://perlcritic.com/perl/critic.pl < MyModule.pm
+  $> wget -q -O - --post-file=MyModule.pm http://perlcritic.com/perl/critic.pl
 
 Please note that the perlcritic web-service is still alpha code.  The
 URL and interface to the service are subject to change.
@@ -162,29 +200,26 @@ URL and interface to the service are subject to change.
 
 =over 8
 
-=item critic_ok( FILE [, TEST_NAME ] )
+=item critic_ok( $FILE [, $TEST_NAME ] )
 
-Okays the test if Perl::Critic does not find any violations in FILE.
+Okays the test if Perl::Critic does not find any violations in $FILE.
 If it does, the violations will be reported in the test diagnostics.
 The optional second argument is the name of test, which defaults to
-"Perl::Critic test for FILE".
+"Perl::Critic test for $FILE".
 
-=item all_critic_ok( [@DIRECTORIES] )
+If you use this form, you should emit your own L<Test::More> plan first.
+
+=item all_critic_ok( [ @DIRECTORIES ] )
 
 Runs C<critic_ok()> for all Perl files beneath the given list of
-directories.  If given an empty list, the function tries to find all
-Perl files in the F<blib/> directory.  If the F<blib/> directory does
-not exist, then it tries the F<lib/> directory.  Returns true if all
-files are okay, or false if any file fails.
+C<@DIRECTORIES>.  If C<@DIRECTORIES> is empty or not given, this
+function tries to find all Perl files in the F<blib/> directory.  If
+the F<blib/> directory does not exist, then it tries the F<lib/>
+directory.  Returns true if all files are okay, or false if any file
+fails.
 
-If you are building a module with the usual CPAN directory structure,
-just make a F<t/perlcritic.t> file like this:
-
-  use Test::Perl::Critic;
-  all_critic_ok();
-
-Or if you use the latest version of L<Module::Starter::PBP>, it will
-generate this and several other standard test programs for you.
+This subroutine emits its own L<Test::More> plan, so you do not need
+to specify an expected number of tests yourself.
 
 =item all_code_files ( [@DIRECTORIES] )
 
@@ -218,7 +253,7 @@ Test::Perl::Critic to do the same.
 
 Any arguments given to the C<use> pragma will be passed into the
 L<Perl::Critic> constructor.  So if you have developed your code using
-a custom F<~/.perlcriticrc> file, you can ask Test::Perl::Critic to
+a custom F<~/.perlcriticrc> file, you can direct Test::Perl::Critic to
 use a custom file too.
 
   use Test::Perl::Critic (-profile => 't/perlcriticrc');
@@ -245,10 +280,9 @@ options and arguments.
 
 By default, Test::Perl::Critic displays basic information about each
 Policy violation in the diagnostic output of the test.  You can
-customize the format and content of this information by giving an
-additional C<-verbose> option to the C<use> pragma.  This behaves
-exactly like the C<-verbose> switch on the F<perlcritic> program.  For
-example:
+customize the format and content of this information by using the
+C<-verbose> option.  This behaves exactly like the C<-verbose> switch
+on the F<perlcritic> program.  For example:
 
   use Test::Perl::Critic (-verbose => 6);
 
@@ -258,7 +292,7 @@ example:
 
 If given a number, Test::Perl::Critic reports violations using one of
 the predefined formats described below. If given a string, it is
-interpreted to be an actual format specification. If the -verbose
+interpreted to be an actual format specification. If the C<-verbose>
 option is not specified, it defaults to 3.
 
     Verbosity     Format Specification
@@ -276,8 +310,8 @@ option is not specified, it defaults to 3.
     11            "%m at line %l, near '%r'.\n  %p (Severity: %s)\n%d\n"
 
 Formats are a combination of literal and escape characters similar to
-the way sprintf works. See String::Format for a full explanation of
-the formatting capabilities. Valid escape characters are:
+the way C<sprintf> works. See L<String::Format> for a full explanation
+of the formatting capabilities. Valid escape characters are:
 
     Escape    Meaning
     -------   ----------------------------------------------------------------
@@ -294,17 +328,21 @@ the formatting capabilities. Valid escape characters are:
 
 =head1 CAVEATS
 
-Despite the obvious convenience of using test programs to verify that
-your code complies with coding standards, it is not really sensible to
-distribute your module with those test programs.  You don't know which
-version of Perl::Critic the user has and whether they have installed
-additional Policy modules, so you can't really be sure that your code
-will pass the Test::Perl::Critic tests on another machine.
+Despite the convenience of using a test script to enforce your coding
+standards, there are some inherent risks when distributing those tests
+to others.  Since you don't know which version of L<Perl::Critic> the
+end-user has and whether they have installed any additional Policy
+modules, you can't really be sure that your code will pass the
+Test::Perl::Critic tests on another machine.
 
-The easy solution is to add your F<perlcritic.t> test program to the
-F<MANIFEST.SKIP> file.  When you test your build, you'll still be able
-to run the Perl::Critic tests with C<"make test">, but they won't be
-included in the tarball when you C<"make dist">.
+B<For these reasons, we strongly advise you to make your perlcritic
+tests optional, or exclude them from the distribution entirely.>
+
+The recommended usage in the L<"SYNOPSIS"> section illustrates one way
+to make your F<perlcritic.t> test optional.  Also, you should B<not>
+list Test::Perl::Critic as a requirement in your build script.  These
+tests are only relevant to the author and should not be a prerequisite
+for end-use.
 
 See L<http://www.chrisdolan.net/talk/index.php/2005/11/14/private-regression-tests/>
 for an interesting discussion about Test::Perl::Critic and other types
@@ -342,7 +380,9 @@ files stored in their temp directory.
 
 =head1 BUGS
 
-Please report all bugs to L<http://rt.cpan.org>.  Thanks.
+If you find any bugs, please submit them to
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Perl-Critic>.  Thanks.
+
 
 =head1 SEE ALSO
 

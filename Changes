@@ -1,9 +1,22 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-0.08/Changes $
-#     $Date: 2006-11-05 18:46:37 -0800 (Sun, 05 Nov 2006) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.01/Changes $
+#     $Date: 2007-01-24 22:22:10 -0800 (Wed, 24 Jan 2007) $
 #   $Author: thaljef $
-# $Revision: 816 $
+# $Revision: 1183 $
 ########################################################################
+
+[1.01] Released on 2007-01-24
+
+     PRODUCTION RELEASE: You may now consider the public API of
+     Test::Perl::Critic as stable.
+
+     Edited documentation.  Includes better example for using
+     Test::Perl::Critic in CPAN distributions.
+
+     Added a t/perlcritic.t test to further demonstrate the typical
+     usage for CPAN distributions.
+
+     No code changes.
 
 [0.08] Released on 2006-11-05
 
