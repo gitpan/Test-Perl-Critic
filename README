@@ -49,6 +49,9 @@ DESCRIPTION
     into the build process. For ultimate convenience (at the expense of some
     flexibility), see the criticism pragma.
 
+    If you have an large existing code base, you might prefer to use
+    Test::Perl::Critic::Progressive.
+
     If you'd like to try Perl::Critic without installing anything, there is
     a web-service available at <http://perlcritic.com>. The web-service does
     not yet support all the configuration features that are available in the
@@ -65,49 +68,49 @@ DESCRIPTION
 
 SUBROUTINES
     critic_ok( $FILE [, $TEST_NAME ] )
-            Okays the test if Perl::Critic does not find any violations in
-            $FILE. If it does, the violations will be reported in the test
-            diagnostics. The optional second argument is the name of test,
-            which defaults to "Perl::Critic test for $FILE".
+        Okays the test if Perl::Critic does not find any violations in
+        $FILE. If it does, the violations will be reported in the test
+        diagnostics. The optional second argument is the name of test, which
+        defaults to "Perl::Critic test for $FILE".
 
-            If you use this form, you should emit your own Test::More plan
-            first.
+        If you use this form, you should emit your own Test::More plan
+        first.
 
     all_critic_ok( [ @DIRECTORIES ] )
-            Runs "critic_ok()" for all Perl files beneath the given list of
-            @DIRECTORIES. If @DIRECTORIES is empty or not given, this
-            function tries to find all Perl files in the blib/ directory. If
-            the blib/ directory does not exist, then it tries the lib/
-            directory. Returns true if all files are okay, or false if any
-            file fails.
+        Runs "critic_ok()" for all Perl files beneath the given list of
+        @DIRECTORIES. If @DIRECTORIES is empty or not given, this function
+        tries to find all Perl files in the blib/ directory. If the blib/
+        directory does not exist, then it tries the lib/ directory. Returns
+        true if all files are okay, or false if any file fails.
 
-            This subroutine emits its own Test::More plan, so you do not
-            need to specify an expected number of tests yourself.
+        This subroutine emits its own Test::More plan, so you do not need to
+        specify an expected number of tests yourself.
 
     all_code_files ( [@DIRECTORIES] )
-            DEPRECATED: Use the "all_perl_files" subroutine that is exported
-            by Perl::Critic::Utils instead.
+        DEPRECATED: Use the "all_perl_files" subroutine that is exported by
+        Perl::Critic::Utils instead.
 
-            Returns a list of all the Perl files found beneath each
-            DIRECTORY, If @DIRECTORIES is an empty list, defaults to blib/.
-            If blib/ does not exist, it tries lib/. Skips any files in CVS
-            or Subversion directories.
+        Returns a list of all the Perl files found beneath each DIRECTORY,
+        If @DIRECTORIES is an empty list, defaults to blib/. If blib/ does
+        not exist, it tries lib/. Skips any files in CVS or Subversion
+        directories.
 
-            A Perl file is:
+        A Perl file is:
 
-            * Any file that ends in .PL, .pl, .pm, or .t
-            * Any file that has a first line with a shebang containing
-            'perl'
+        *   Any file that ends in .PL, .pl, .pm, or .t
+
+        *   Any file that has a first line with a shebang containing 'perl'
 
 CONFIGURATION
     Perl::Critic is highly configurable. By default, Test::Perl::Critic
-    invokes Perl::Critic with it's default configuration. But if you have
+    invokes Perl::Critic with its default configuration. But if you have
     developed your code against a custom Perl::Critic configuration, you
     will want to configure Test::Perl::Critic to do the same.
 
-    Any arguments given to the "use" pragma will be passed into the
-    Perl::Critic constructor. So if you have developed your code using a
-    custom ~/.perlcriticrc file, you can direct Test::Perl::Critic to use a
+    Any arguments passed through the "use" pragma (or via
+    "Test::Perl::Critic->import()" )will be passed into the Perl::Critic
+    constructor. So if you have developed your code using a custom
+    ~/.perlcriticrc file, you can direct Test::Perl::Critic to use your
     custom file too.
 
       use Test::Perl::Critic (-profile => 't/perlcriticrc');
@@ -125,7 +128,7 @@ CONFIGURATION
       use Test::Perl::Critic (-severity => 2, -exclude => ['RequireRcsKeywords']);
       all_critic_ok();
 
-    See the Perl::Critic documentation for complete details on it's options
+    See the Perl::Critic documentation for complete details on its options
     and arguments.
 
 DIAGNOSTIC DETAILS
@@ -147,7 +150,7 @@ DIAGNOSTIC DETAILS
     option is not specified, it defaults to 3.
 
         Verbosity     Format Specification
-        -----------   -------------------------------------------------------------
+        -----------   -------------------------------------------------------
          1            "%f:%l:%c:%m\n",
          2            "%f: (%l:%c) %m\n",
          3            "%m at %f line %l\n",
@@ -167,14 +170,19 @@ DIAGNOSTIC DETAILS
         Escape    Meaning
         -------   ----------------------------------------------------------------
         %c        Column number where the violation occurred
-        %d        Full diagnostic discussion of the violation
+        %d        Full diagnostic discussion of the violation (DESCRIPTION in POD)
         %e        Explanation of violation or page numbers in PBP
-        %f        Name of the file where the violation occurred.
-        %l        Line number where the violation occurred
+        %F        Just the name of the logical file where the violation occurred.
+        %f        Path to the logical file where the violation occurred.
+        %G        Just the name of the physical file where the violation occurred.
+        %g        Path to the physical file where the violation occurred.
+        %l        Logical line number where the violation occurred
+        %L        Physical line number where the violation occurred
         %m        Brief description of the violation
-        %P        Name of the Policy module that created the violation
+        %P        Full name of the Policy module that created the violation
         %p        Name of the Policy without the Perl::Critic::Policy:: prefix
         %r        The string of source code that caused the violation
+        %C        The class of the PPI::Element that caused the violation
         %s        The severity level of the violation
 
 CAVEATS
@@ -189,10 +197,12 @@ CAVEATS
     optional, or exclude them from the distribution entirely.
 
     The recommended usage in the "SYNOPSIS" section illustrates one way to
-    make your perlcritic.t test optional. Also, you should not list
-    Test::Perl::Critic as a requirement in your build script. These tests
-    are only relevant to the author and should not be a prerequisite for
-    end-use.
+    make your perlcritic.t test optional. Another option is to put
+    perlcritic.t and other author-only tests in a separate directory (xt/
+    seems to be common), and then use a custom build action when you want to
+    run them. Also, you should not list Test::Perl::Critic as a requirement
+    in your build script. These tests are only relevant to the author and
+    should not be a prerequisite for end-use.
 
     See
     <http://www.chrisdolan.net/talk/index.php/2005/11/14/private-regression-
@@ -243,10 +253,11 @@ CREDITS
     documentation for Test::Perl::Critic. Thanks, Andy.
 
 AUTHOR
-    Jeffrey Ryan Thalhammer <thaljef@cpan.org>
+    Jeffrey Ryan Thalhammer <jeff@imaginative-software.com>
 
 COPYRIGHT
-    Copyright (c) 2005-2006 Jeffrey Ryan Thalhammer. All rights reserved.
+    Copyright (c) 2005-2009 Imaginative Software Systems. All rights
+    reserved.
 
     This program is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself. The full text of this license can

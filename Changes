@@ -1,9 +1,17 @@
 #######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.01/Changes $
-#     $Date: 2007-01-24 22:22:10 -0800 (Wed, 24 Jan 2007) $
+#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.02/Changes $
+#     $Date: 2009-10-22 16:03:02 -0700 (Thu, 22 Oct 2009) $
 #   $Author: thaljef $
-# $Revision: 1183 $
+# $Revision: 3687 $
 ########################################################################
+
+[1.02] Released on 2009-10-22
+
+     Documentation changes.  META.yml "enhancements".  Moved author
+     tests out of the way of normal testing.
+
+     Now requires Perl-Critic version 1.105 or newer.  Fixed source
+     code to be compliant with this version. Reported by Xavier Caron.
 
 [1.01] Released on 2007-01-24
 
