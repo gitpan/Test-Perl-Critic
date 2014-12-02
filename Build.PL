@@ -1,10 +1,3 @@
-#######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.02/Build.PL $
-#     $Date: 2009-10-22 16:25:08 -0700 (Thu, 22 Oct 2009) $
-#   $Author: thaljef $
-# $Revision: 3689 $
-########################################################################
-
 use 5.006001;
 
 use strict;
@@ -58,7 +51,11 @@ my $builder = $class->new(
     create_packlist => 1,
     sign            => 0,
 
-    requires        => {
+    configure_requires   => { 
+        'Module::Build'             => 0.4,
+     },
+
+    requires             => {
         'Carp'                      => 0,
         'English'                   => 0,
         'Perl::Critic'              => 1.105,
@@ -73,12 +70,13 @@ my $builder = $class->new(
         'Test::More'                => 0,
     },
 
+    add_to_cleanup  => [ qw(Test-Perl-Critic-* MANIFEST.bak) ],
+
     meta_merge      => {
         resources   => {
             homepage    => 'http://perlcritic.com',
             license     => 'http://dev.perl.org/licenses/',
-            Repository  => 'http://guest@perlcritic.tigris.org/svn/perlcritic/trunk/distributions/Test-Perl-Critic/',
-            MailingList => 'http://perlcritic.tigris.org/servlets/SummarizeList?listName=users',
+            repository  => 'http://github.com/Perl-Critic/Test-Perl-Critic.git',
         }
     },
 );

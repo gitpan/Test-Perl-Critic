@@ -1,10 +1,3 @@
-#######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.02/lib/Test/Perl/Critic.pm $
-#     $Date: 2009-10-22 16:23:18 -0700 (Thu, 22 Oct 2009) $
-#   $Author: thaljef $
-# $Revision: 3688 $
-########################################################################
-
 package Test::Perl::Critic;
 
 use 5.006001;
@@ -12,22 +5,23 @@ use 5.006001;
 use strict;
 use warnings;
 
-use English qw(-no_match_vars);
 use Carp qw(croak);
+use English qw(-no_match_vars);
+use MCE::Grep chunk_size => 1;
 
 use Test::Builder qw();
 use Perl::Critic qw();
 use Perl::Critic::Violation qw();
 use Perl::Critic::Utils;
 
+#---------------------------------------------------------------------------
+
+our $VERSION = '1.02_001';
 
 #---------------------------------------------------------------------------
 
-our $VERSION = 1.02;
-
-#---------------------------------------------------------------------------
-
-my $TEST        = Test::Builder->new();
+my $TEST = Test::Builder->new;
+my $DIAG_INDENT = q{  };
 my %CRITIC_ARGS = ();
 
 #---------------------------------------------------------------------------
@@ -43,11 +37,11 @@ sub import {
         *{ $caller . '::all_critic_ok' } = \&all_critic_ok;
     }
 
-    $TEST->exported_to($caller);
-
     # -format is supported for backward compatibility
     if ( exists $args{-format} ) { $args{-verbose} = $args{-format}; }
     %CRITIC_ARGS = %args;
+
+    $TEST->exported_to($caller);
 
     return 1;
 }
@@ -67,7 +61,6 @@ sub critic_ok {
 
     # Run Perl::Critic
     my $status = eval {
-        # TODO: Should $critic be a global singleton?
         $critic     = Perl::Critic->new( %CRITIC_ARGS );
         @violations = $critic->critique( $file );
         $ok         = not scalar @violations;
@@ -77,19 +70,16 @@ sub critic_ok {
     # Evaluate results
     $TEST->ok($ok, $test_name );
 
-
     if (!$status || $EVAL_ERROR) {   # Trap exceptions from P::C
         $TEST->diag( "\n" );         # Just to get on a new line.
         $TEST->diag( qq{Perl::Critic had errors in "$file":} );
         $TEST->diag( qq{\t$EVAL_ERROR} );
     }
-    elsif ( not $ok ) {          # Report Policy violations
-        $TEST->diag( "\n" );     # Just to get on a new line.
-        $TEST->diag( qq{Perl::Critic found these violations in "$file":} );
-
+    elsif ( not $ok ) {              # Report Policy violations
+        $TEST->diag( "\n" );         # Just to get on a new line.
         my $verbose = $critic->config->verbose();
         Perl::Critic::Violation::set_format( $verbose );
-        for my $viol (@violations) { $TEST->diag("$viol") }
+        for my $viol (@violations) { $TEST->diag($DIAG_INDENT . $viol) }
     }
 
     return $ok;
@@ -104,11 +94,24 @@ sub all_critic_ok {
         @dirs = _starting_points();
     }
 
-    my @files = all_code_files( @dirs );
-    $TEST->plan( tests => scalar @files );
+    # Since tests are running in forked MCE workers, test results could arrive
+    # in any order. The test numbers will be meaningless, so turn them off.
+    $TEST->use_numbers(0);
 
-    my $okays = grep { critic_ok($_) } @files;
-    return $okays == @files;
+    # The parent won't know about any of the tests that were run by the forked
+    # workers. So we disable the T::B sanity checks at the end of its life.
+    $TEST->no_ending(1);
+
+    my @files = all_code_files( @dirs );
+    my $okays = mce_grep { critic_ok($_) } @files;
+    my $pass = $okays == @files;
+
+    # To make Test::Harness happy, we must emit a test plan and a sensible exit
+    # status. Usually, T::B does this for us, but we disabled the ending above.
+    $pass || eval 'END { $? = 1 }'; ## no critic qw(Eval Interpolation)
+    $TEST->done_testing(scalar @files);
+
+    return $pass;
 }
 
 #---------------------------------------------------------------------------
@@ -196,23 +199,14 @@ process.  For ultimate convenience (at the expense of some flexibility), see
 the L<criticism> pragma.
 
 If you have an large existing code base, you might prefer to use
-L<Test::Perl::Critic::Progressive>.
+L<Test::Perl::Critic::Progressive>, which allows you to clean your code
+incrementally instead of all at once..
 
 If you'd like to try L<Perl::Critic> without installing anything, there is a
 web-service available at L<http://perlcritic.com>.  The web-service does not
-yet support all the configuration features that are available in the native
-Perl::Critic API, but it should give you a good idea of what it does.  You can
-also invoke the perlcritic web-service from the command line by doing an
-HTTP-post, such as one of these:
-
-  $> POST http://perlcritic.com/perl/critic.pl < MyModule.pm
-  $> lwp-request -m POST http://perlcritic.com/perl/critic.pl < MyModule.pm
-  $> wget -q -O - --post-file=MyModule.pm http://perlcritic.com/perl/critic.pl
-
-Please note that the perlcritic web-service is still alpha code.  The
-URL and interface to the service are subject to change.
-
-
+support all the configuration features that are available in the native
+Perl::Critic API, but it should give you a good idea of what Perl::Critic can
+do.
 
 =head1 SUBROUTINES
 
@@ -225,7 +219,8 @@ does, the violations will be reported in the test diagnostics.  The optional
 second argument is the name of test, which defaults to "Perl::Critic test for
 $FILE".
 
-If you use this form, you should emit your own L<Test::More> plan first.
+If you use this form, you should load L<Test::More> and emit your own test plan
+first or call C<done_testing()> afterwards.
 
 =item all_critic_ok( [ @DIRECTORIES ] )
 
@@ -235,8 +230,9 @@ tries to find all Perl files in the F<blib/> directory.  If the F<blib/>
 directory does not exist, then it tries the F<lib/> directory.  Returns true
 if all files are okay, or false if any file fails.
 
-This subroutine emits its own L<Test::More> plan, so you do not need to
-specify an expected number of tests yourself.
+This subroutine emits its own test plan, so you do not need to specify the
+expected number of tests or call C<done_testing()>. Therefore, C<all_critic_ok>
+generally cannot be used in a test script that includes other sorts of tests.
 
 =item all_code_files ( [@DIRECTORIES] )
 
@@ -366,7 +362,7 @@ you should B<not> list Test::Perl::Critic as a requirement in your build
 script.  These tests are only relevant to the author and should not be a
 prerequisite for end-use.
 
-See L<http://www.chrisdolan.net/talk/index.php/2005/11/14/private-regression-tests/>
+See L<http://chrisdolan.net/talk/2005/11/14/private-regression-tests/>
 for an interesting discussion about Test::Perl::Critic and other types
 of author-only regression tests.
 
@@ -374,31 +370,6 @@ of author-only regression tests.
 
   critic_ok()
   all_critic_ok()
-
-=head1 PERFORMANCE HACKS
-
-If you want a small performance boost, you can tell PPI to cache results from
-previous parsing runs.  Most of the processing time is in Perl::Critic, not
-PPI, so the speedup is not huge (only about 20%).  Nonetheless, if your
-distribution is large, it's worth the effort.
-
-Add a block of code like the following to your test program, probably just
-before the call to C<all_critic_ok()>.  Be sure to adjust the path to the temp
-directory appropriately for your system.
-
-    use File::Spec;
-    my $cache_path = File::Spec->catdir(File::Spec->tmpdir,
-                                        "test-perl-critic-cache-$ENV{USER}");
-    if (!-d $cache_path) {
-       mkdir $cache_path, oct 700;
-    }
-    require PPI::Cache;
-    PPI::Cache->import(path => $cache_path);
-
-We recommend that you do NOT use this technique for tests that will go out to
-end-users.  They're probably going to only run the tests once, so they will
-not see the benefit of the caching but will still have files stored in their
-temp directory.
 
 =head1 BUGS
 
@@ -421,11 +392,11 @@ documentation for Test::Perl::Critic.  Thanks, Andy.
 
 =head1 AUTHOR
 
-Jeffrey Ryan Thalhammer <jeff@imaginative-software.com>
+Jeffrey Ryan Thalhammer <jeff@thaljef.org>
 
 =head1 COPYRIGHT
 
-Copyright (c) 2005-2009 Imaginative Software Systems.  All rights reserved.
+Copyright (c) 2005-2014 Jeffrey Ryan Thalhammer.
 
 This program is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.  The full text of this license

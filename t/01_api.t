@@ -1,9 +1,3 @@
-#######################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.02/t/01_api.t $
-#     $Date: 2006-05-24 00:40:54 -0700 (Wed, 24 May 2006) $
-#   $Author: thaljef $
-# $Revision: 433 $
-########################################################################
 
 use strict;
 use warnings;

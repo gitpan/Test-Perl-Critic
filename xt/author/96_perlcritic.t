@@ -1,9 +1,3 @@
-###############################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.02/xt/author/96_perlcritic.t $
-#     $Date: 2008-05-18 01:10:56 -0700 (Sun, 18 May 2008) $
-#   $Author: clonezone $
-# $Revision: 2354 $
-###############################################################################
 
 use strict;
 use warnings;

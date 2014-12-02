@@ -1,9 +1,3 @@
-##############################################################################
-#      $URL: http://perlcritic.tigris.org/svn/perlcritic/tags/Test-Perl-Critic-1.02/xt/author/perlcriticrc $
-#     $Date: 2008-05-18 01:16:16 -0700 (Sun, 18 May 2008) $
-#   $Author: clonezone $
-# $Revision: 2355 $
-##############################################################################
 
 profile-strictness = quiet
 severity = 1
@@ -13,6 +7,7 @@ verbose = %f: %m at line %l, column %c.  %e.  (Severity: %s, %p)\n
 #-----------------------------------------------------------------------------
 
 [-CodeLayout::RequireTidyCode]
+[-Documentation::RequirePodLinksIncludeText]
 
 [Documentation::RequirePodSections]
 lib_sections    = NAME|DESCRIPTION|AUTHOR|COPYRIGHT
